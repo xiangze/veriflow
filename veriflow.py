@@ -24,9 +24,20 @@ class Variable(object):
         self.width=bits
         self.bits=bits
         self.issigned=issigned
+        self.issigned=issigned
         self.defs=self.gendefs(name,sp,shape,bits,issigned,end)
+        self.s=""
+        self.leaf=[]
 
-
+    def dump(self):
+        print('name:'+self.name)
+        print('type:'+str(type(self)))
+        print('def :'+self.defs)
+        print('ss  :'+self.s)
+        print('leaf  :')
+        print(self.leaf)
+        for l in self.leaf:
+            l.dump()
 
 class Wire(Variable):        
     def __init__(self,name,ops=None,shape=[1],bits=8,issigned=False):
@@ -84,7 +95,7 @@ def sub(l,r):
 def multiply(l,r):
     return op2("*",l,r)
 
-
+"""
 def _getinputs(t,ins=[]):
     for l in t.leaf:
         if(isinstance(l,Input)):
@@ -92,12 +103,20 @@ def _getinputs(t,ins=[]):
         else:
             ins=_getinputs(l,ins)
     return ins
+"""
+def _getinputs(t,ins=[]):
+    if(isinstance(t,Input)):
+        ins.append(t)
+    else:
+        for l in t:#leaf
+            ins=_getinputs(l,ins)
+    return ins
 
 def _getoutputs(t,ins=[]):
-    for l in t.leaf:
-        if(isinstance(l,Output)):
-            ins.append(l)
-        else:
+    if(isinstance(t,Output)):
+        ins.append(t)
+    else:
+        for l in t:#leaf
             ins=_getinputs(l,ins)
     return ins
 
@@ -112,14 +131,16 @@ def __flatten(ls):
             flst.append(node)
 
 class Session(object):
-   def __init__(self,sim="iverilog",ifname="test.sv"):
+   def __init__(self,sim="iverilog",ifname="test.sv",modname="testmod.sv"):
        self.simulator=sim
        self.ifname=ifname
        self.clock="clock"
        self.reset="resetn"
 
-       self.modname="testmod"
+       self.modname=modname
        self.vars=[]
+       self.seq=""
+       self.s=""
 
    def _ckp(self):
        return """
@@ -129,6 +150,14 @@ class Session(object):
        #5 %s = ~%s;
         end
       end"""%(self.clock,self.clock,self.clock)
+
+   def _resetp(self):
+       return """
+       initial begin
+       %s = 0;
+       #1
+       %s = 1;
+       end"""%(self.reset,self.reset)
 
    def __mod(self,vars):
        s="module ("
@@ -144,17 +173,18 @@ class Session(object):
        s+="endmodule"
        return s
 
-   def __inst(self,vars,suf=""):
+   def _inst(self,vars,suf=""):
        ios=_getinputs(vars)
        ios+=_getoutputs(vars)
-       s="%s %s_%s("%(modname,modname,suf)
+       s="%s %s_%s("%(self.modname,self.modname,suf)
        s+=",".join([ ".%s (%s%s)"%(i,i,suf) for i in ios ])
-       s+=");"%mod.name
+       s+=");"
        return s
 
    def run(self,f,feed_dict,wait=1):
        ins=_getinputs(f)
        self.vars.append(f)
+
        for k,v in feed_dict.items():
            for i in ins:
                if(k==i.name):
@@ -170,8 +200,8 @@ class Session(object):
        self.fp=open(self.modname,'w')
        self.fp.write(self.__mod(self.vars))
        self.fp.close()
-#test
 
+#test
        self.s="module test();\n"
        self.s+="reg %s,%s;\n"%(self.clock,self.reset)
 
@@ -179,8 +209,7 @@ class Session(object):
            self.s+=i.putreg();
        for o in _getoutputs(self.vars):
            self.s+=o.putwire();
-
-#sequence
+##sequence
        self.s+="initial begin\n"
        self.s+=self.seq
        for o in _getoutputs(self.vars):
@@ -189,14 +218,14 @@ class Session(object):
        self.s+="$finish();\n"
        self.s+="end\n"
        
-       self.s+=self.__ckp()
-       self.s+=self.__resetp()
-       self.s+=self.__inst()
+       self.s+=self._ckp()
+       self.s+=self._resetp()
+       self.s+=self._inst(self.vars)
        self.s+="endmodule\n"
 
-       self.fp=open(self.ifname,'w')
-       self.fp.write(s)
-       self.fp.close()
+       self.fs=open(self.ifname,'w')
+       self.fs.write(s)
+       self.fs.close()
 
        try:
            if(self.simulator=="iverilog"):
@@ -218,6 +247,8 @@ if __name__=='__main__':
    b=Input("b")
    c=add(a,b)
    cr=Reg("cr",c)
+   cr.dump()
+
    with Session() as s:
        s.run(cr,{a:1,b:2})
 
