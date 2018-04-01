@@ -1,8 +1,9 @@
-Veriflow
-
+# Veriflow
 tensorflow-like verilog generator/executor
 
+
 sample:
+------
     	import veriflow as tf
 	a=vf.Input("a")
 	b=vf.Input("b")
