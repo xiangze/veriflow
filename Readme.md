@@ -5,7 +5,8 @@ tensorflow-like verilog generator/executor
 sample:
 ------
 
-    	import veriflow as tf
+	import veriflow as tf
+	
 	a=vf.Input("a")
 	b=vf.Input("b")
 	c=vf.add(a,b)
