@@ -3,7 +3,8 @@ tensorflow-like verilog generator/executor
 
 requirement
 ------
-verilator or iverilog
+[verilator](https://www.veripool.org/wiki/verilator) or [iverilog](http://iverilog.icarus.com/)
+
 
 sample:
 ------
