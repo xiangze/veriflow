@@ -8,7 +8,7 @@ requirement
 
 sample:
 ------
-
+```python
 	import veriflow as vf
 	
 	a=vf.Input("a")
@@ -18,4 +18,4 @@ sample:
 	o=vf.Output("o",cr)
 	with vf.Session() as s:
 	     s.run(o,{a:1,b:2})
-
+```
