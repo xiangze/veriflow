@@ -80,8 +80,12 @@ class Input(Variable):
 class Output(Variable):        
     def __init__(self,name,ops,shape=[],bits=8,issigned=False):
         super().__init__(name,"output",shape,bits,issigned,"")
-        self.s="assign %s=%s;"%(name,ops.s)
-        self.leaf=ops["leaf"]
+        if(isinstance(ops,dict)):
+            self.s="assign %s=%s;"%(name,ops.s)
+            self.leaf=ops["leaf"]
+        else:#variable
+            self.s="assign %s=%s;"%(name,ops.name)
+            self.leaf=[ops]
 
     def putwire(self):
         return _gendefs(self.name,"wire",self.shape,self.bits,self.issigned,";")
@@ -118,7 +122,7 @@ def _getinputs(t,ins=[]):
 
 def _getoutputs1(t,ins=[]):
     if(isinstance(t,Output)):
-        ins.append1(t)
+        ins.append(t)
         _dprint("getoutputs output")
     elif(isinstance(t,list)):
         _dprint("getoutputs list")
@@ -175,8 +179,7 @@ class Session(object):
 
    def __mod(self,vars):
        s="module %s(\n"%(self.modnametr)
-       ios=_getinputs(vars)
-       ios+=_getoutputs(vars)
+       ios=_getinputs(vars)+_getoutputs(vars)
        s+=",\n".join([i.defs for i in ios])
        s+=");\n"
 
@@ -188,8 +191,7 @@ class Session(object):
        return s
 
    def _inst(self,vars,suf=""):
-       ios=_getinputs(vars)
-       ios+=_getoutputs(vars)
+       ios=_getinputs(vars)+_getoutputs(vars)
        s="%s %s_%s("%(self.modnametr,self.modnametr,suf)+"\n"
        s+=".%s (%s),"%(self.clock,self.clock)+"\n"
        s+=".%s (%s),"%(self.reset,self.reset)+"\n"
@@ -206,13 +208,15 @@ class Session(object):
        _dprint(ins)
        _dprint("vars:")
        _dprint(self.vars)
+       _dprint("feed_dict:")
+       _dprint(feed_dict)
 
        for k,v in feed_dict.items():
            for i in ins:
-               if(k==i.name):
+               if(k.name==i.name):
                    self.seq+="%s =%s;\n"%(i.name,v)
-                   if(wait>0):
-                       self.seq+="repeat(%d)@posedge(%s);\n"%(wait,clock)
+           if(wait>0):
+               self.seq+="repeat(%d)@posedge(%s);\n"%(wait,self.clock)
 
    def __enter__(self):
        return self
@@ -231,9 +235,9 @@ class Session(object):
        self.s+="reg %s,%s;\n"%(self.clock,self.reset)
 
        for i in _getinputs(self.vars):
-           self.s+=i.putreg();
+           self.s+=i.putreg()+"\n"
        for o in _getoutputs(self.vars):
-           self.s+=o.putwire();
+           self.s+=o.putwire()+"\n"
 ##sequence
        self.s+="initial begin\n"
        self.s+=self.seq
@@ -273,8 +277,9 @@ if __name__=='__main__':
    b=Input("b")
    c=add(a,b)
    cr=Reg("cr",c)
+   o=Output("o",cr)
 #   cr.dump()
 
    with Session() as ses:
-       ses.run(cr,{a:1,b:2})
+       ses.run(o,{a:1,b:2})
 
