@@ -1,6 +1,9 @@
 # Veriflow
 tensorflow-like verilog generator/executor
 
+requirement
+------
+verilator or iverilog
 
 sample:
 ------
